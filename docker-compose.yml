@@ -8,6 +8,8 @@ services:
     ports:
       - "8080:80"
       - "8443:443"
+    volumes:
+      - ./config.php:/var/www/html/owncloud/config/config.php
   mysql:
     image: mysql:8.0
     environment:

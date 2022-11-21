@@ -3,8 +3,8 @@ LABEL maintainer="Kiran Parajuli <kiran@jankaritech.com> (@kiranparauli589)"
 
 RUN php -m
 RUN curl -sSLf \
-        -o /usr/local/bin/install-php-extensions \
-        https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions && \
+    -o /usr/local/bin/install-php-extensions \
+    https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions && \
     chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions mysqli gd intl imagick zip xdebug ldap memcached redis apcu ast gmp
 RUN php -m
@@ -40,10 +40,6 @@ RUN apache2ctl configtest
 COPY apache/test.html /var/www/html/index.html
 COPY apache/test.html /var/www/html/check/index.html
 
-# install owncloud core at /var/www/html
-RUN git clone -b master --single-branch --depth 1 https://github.com/owncloud/core.git /var/www/html/owncloud
-RUN chown -R www-data:www-data /var/www/html/owncloud
-
 # install composer
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 RUN php -r "if (hash_file('sha384', 'composer-setup.php') === '55ce33d7678c5a611085589f1f3ddf8b3c52d662cd01d4ba75c0ee0459970c2200a51f492d557530c71c15d8dba01eae') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
@@ -51,10 +47,15 @@ RUN php composer-setup.php
 RUN php -r "unlink('composer-setup.php');"
 RUN mv composer.phar /usr/local/bin/composer
 
-RUN make -C /var/www/html/owncloud
-
+# get owncloud with OAuth2 app
+RUN git clone -b master --single-branch --depth 1 https://github.com/owncloud/core.git /var/www/html/owncloud
 WORKDIR /var/www/html/owncloud
-#RUN php occ maintenance:install -vvv --admin-user=admin --admin-pass=admin --data-dir=/var/www/html/owncloud/data --database-host=mysql --database-user=owncloud --database-pass=owncloud --database=mysql --database-name=owncloud --database-table-prefix=oc_
+RUN make
+RUN git clone https://github.com/owncloud/oauth2.git apps/oauth2
+RUN make -C apps/oauth2 dist
+RUN php ./occ maintenance:install -vvv --admin-user=admin --admin-pass=admin --data-dir=/var/www/html/owncloud/data
+RUN chown www-data:www-data . -R
+RUN php ./occ app:enable oauth2
 
 # start apache
 CMD ["apache2-foreground"]
