@@ -10,7 +10,7 @@ RUN curl -sSLf \
 RUN php -m
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends apt-utils build-essential zsh neovim make unzip git curl openssl ufw
+RUN apt-get install -y --no-install-recommends build-essential zsh neovim make unzip git curl openssl
 RUN sh -c "$(curl -fsSL "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh")"
 RUN exec zsh
 RUN chsh -s $(which zsh)
@@ -47,15 +47,22 @@ RUN php composer-setup.php
 RUN php -r "unlink('composer-setup.php');"
 RUN mv composer.phar /usr/local/bin/composer
 
+USER www-data
+
 # get owncloud with OAuth2 app
 RUN git clone -b master --single-branch --depth 1 https://github.com/owncloud/core.git /var/www/html/owncloud
 WORKDIR /var/www/html/owncloud
 RUN make
+
+# configure oauth2 app
 RUN git clone https://github.com/owncloud/oauth2.git apps/oauth2
 RUN make -C apps/oauth2 dist
+RUN ls -la
+
+# install owncloud
 RUN php ./occ maintenance:install -vvv --admin-user=admin --admin-pass=admin --data-dir=/var/www/html/owncloud/data
-RUN chown www-data:www-data . -R
 RUN php ./occ app:enable oauth2
 
+USER root
 # start apache
 CMD ["apache2-foreground"]
